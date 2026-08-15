@@ -40,6 +40,15 @@ def init():
     c.commit()
 
 init()
+from bot import setup_webhook, webhook_update
+
+@app.on_event("startup")
+def startup():
+    setup_webhook()
+
+@app.post("/telegram/webhook")
+def telegram_webhook(payload: dict):
+    return {"ok": webhook_update(payload)}
 
 class ProjectIn(BaseModel):
     title: str
