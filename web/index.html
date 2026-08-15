@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>مدیر تیم — نسخه آزمایشی</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Tahoma,Arial,sans-serif;background:#f4f6f8;color:#17202a}
+header{background:#fff;border-bottom:1px solid #e5e7eb;padding:18px 22px;position:sticky;top:0;z-index:2}
+.wrap{max-width:1050px;margin:auto;padding:20px}
+h1,h2,h3{margin-top:0}
+.muted{color:#667085;font-size:13px}
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.card{background:#fff;border:1px solid #e7e9ec;border-radius:18px;padding:18px;box-shadow:0 4px 18px rgba(20,30,40,.05)}
+.stat .n{font-size:30px;font-weight:800;margin-top:8px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}
+input,textarea,select{width:100%;padding:11px;border:1px solid #d8dde3;border-radius:11px;margin:6px 0;font-family:inherit}
+textarea{min-height:80px;resize:vertical}
+button{border:0;border-radius:11px;padding:10px 14px;cursor:pointer;background:#17202a;color:#fff;font-family:inherit}
+button.secondary{background:#eef1f4;color:#17202a}
+button.danger{background:#fff0f0;color:#b42318}
+.row{display:flex;gap:8px;align-items:center;justify-content:space-between}
+.task{margin-top:10px;border:1px solid #e7e9ec;border-radius:14px;padding:14px}
+.badge{display:inline-block;background:#eef1f4;border-radius:20px;padding:5px 9px;font-size:11px;margin:3px 0}
+.todo{background:#f2f4f7}.doing{background:#fff7df}.review{background:#eaf4ff}.done{background:#eaf8ef}
+.actions{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+.notice{background:#eef6ff;border:1px solid #cfe5ff;padding:12px;border-radius:12px;margin-bottom:15px}
+@media(max-width:800px){.cards{grid-template-columns:repeat(2,1fr)}.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap" style="padding:0">
+    <div class="row">
+      <div>
+        <strong>🎯 مدیر تیم</strong>
+        <div class="muted">نسخه آزمایشی روی کامپیوتر شما</div>
+      </div>
+      <button class="secondary" onclick="loadAll()">↻ بروزرسانی</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+<div class="notice">فعلاً فقط خود شما مدیر هستید. می‌توانید پروژه و وظیفه آزمایشی بسازید و وضعیت آن‌ها را تغییر دهید.</div>
+
+<section class="cards" id="stats"></section>
+
+<section class="grid">
+<div class="card">
+<h2>🚀 ایجاد پروژه</h2>
+<input id="projectTitle" placeholder="مثلاً پروژه تولید محتوای تاریخی">
+<textarea id="projectDesc" placeholder="توضیح کوتاه پروژه"></textarea>
+<button onclick="createProject()">ایجاد پروژه</button>
+</div>
+
+<div class="card">
+<h2>📋 ایجاد وظیفه</h2>
+<input id="taskTitle" placeholder="مثلاً تحقیق درباره ستارخان">
+<textarea id="taskDesc" placeholder="توضیحات کار"></textarea>
+<select id="taskProject"></select>
+<select id="priority">
+<option value="normal">🟡 اولویت عادی</option>
+<option value="high">🟠 اولویت بالا</option>
+<option value="urgent">🔴 فوری</option>
+</select>
+<label class="muted">ددلاین</label>
+<input id="due" type="date">
+<button onclick="createTask()">ایجاد وظیفه</button>
+</div>
+</section>
+
+<section class="card" style="margin-top:16px">
+<div class="row">
+<h2>📋 وظایف</h2>
+<span class="muted" id="count"></span>
+</div>
+<div id="tasks"></div>
+</section>
+
+<section class="card" style="margin-top:16px">
+<h2>🚀 پروژه‌ها</h2>
+<div id="projects"></div>
+</section>
+</main>
+
+<script>
+const $=id=>document.getElementById(id);
+async function api(url,opt={}){const r=await fetch(url,opt); if(!r.ok){const t=await r.text();throw new Error(t)} return r.json()}
+const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+const labels={todo:'شروع نشده',doing:'در حال انجام',review:'در انتظار بررسی',done:'تکمیل شده'};
+const priority={normal:'عادی',high:'بالا',urgent:'فوری'};
+
+async function loadAll(){
+ try{
+  const [s,p,t]=await Promise.all([api('/api/stats'),api('/api/projects'),api('/api/tasks')]);
+  $('stats').innerHTML=[
+   ['🚀 پروژه‌ها',s.projects],['📋 کل کارها',s.total],['🟢 تکمیل‌شده',s.done],['🔴 عقب‌افتاده',s.overdue]
+  ].map(x=>`<div class="card stat"><div>${x[0]}</div><div class="n">${x[1]}</div></div>`).join('');
+  $('taskProject').innerHTML='<option value="">بدون پروژه</option>'+p.map(x=>`<option value="${x.id}">${esc(x.title)}</option>`).join('');
+  $('projects').innerHTML=p.length?p.map(x=>`<div class="task"><b>${esc(x.title)}</b><br><span class="muted">${esc(x.description||'بدون توضیح')}</span></div>`).join(''):'هنوز پروژه‌ای ساخته نشده است.';
+  $('count').textContent=`${t.length} کار`;
+  $('tasks').innerHTML=t.length?t.map(renderTask).join(''):'هنوز کاری ساخته نشده است.';
+ }catch(e){alert('خطا: '+e.message)}
+}
+function renderTask(t){
+ return `<div class="task ${t.status}">
+ <div class="row"><b>${esc(t.title)}</b><span class="badge">${esc(labels[t.status])}</span></div>
+ <div class="muted">${esc(t.project_title||'بدون پروژه')} · اولویت ${esc(priority[t.priority]||t.priority)} · ددلاین ${esc(t.due_date||'ندارد')}</div>
+ ${t.description?`<p>${esc(t.description)}</p>`:''}
+ <div class="actions">
+  ${t.status!=='todo'?'<button class="secondary" onclick="setStatus('+t.id+',\'todo\')">شروع نشده</button>':''}
+  ${t.status!=='doing'?'<button class="secondary" onclick="setStatus('+t.id+',\'doing\')">در حال انجام</button>':''}
+  ${t.status!=='review'?'<button class="secondary" onclick="setStatus('+t.id+',\'review\')">برای بررسی</button>':''}
+  ${t.status!=='done'?'<button onclick="setStatus('+t.id+',\'done\')">تکمیل</button>':''}
+  <button class="danger" onclick="removeTask(${t.id})">حذف</button>
+ </div></div>`;
+}
+async function createProject(){
+ if(!$('projectTitle').value.trim()) return alert('عنوان پروژه را وارد کنید.');
+ await api('/api/projects',{method:'POST',headers:{'Content-Type':'application/json'},
+ body:JSON.stringify({title:$('projectTitle').value,description:$('projectDesc').value})});
+ $('projectTitle').value='';$('projectDesc').value='';await loadAll();
+}
+async function createTask(){
+ if(!$('taskTitle').value.trim()) return alert('عنوان کار را وارد کنید.');
+ await api('/api/tasks',{method:'POST',headers:{'Content-Type':'application/json'},
+ body:JSON.stringify({title:$('taskTitle').value,description:$('taskDesc').value,
+ project_id:$('taskProject').value?Number($('taskProject').value):null,
+ priority:$('priority').value,due_date:$('due').value||null})});
+ $('taskTitle').value='';$('taskDesc').value='';$('due').value='';await loadAll();
+}
+async function setStatus(id,status){await api('/api/tasks/'+id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status})});loadAll()}
+async function removeTask(id){if(confirm('این وظیفه حذف شود؟')){await api('/api/tasks/'+id,{method:'DELETE'});loadAll()}}
+loadAll();
+</script>
+</body>
+</html>
